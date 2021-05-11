@@ -1,6 +1,11 @@
+#include <iostream>
+#include <Windows.h>
+#include <TlHelp32.h>
+#include <vector>
+
 namespace ProcMemory {
-	uintptr_t GetProcessId(const wchar_t* procName) {
-		uintptr_t procId = NULL;
+	DWORD GetProcessId(const wchar_t* procName) {
+		DWORD procId = NULL;
 		HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
 
 		if (hSnap != INVALID_HANDLE_VALUE) {
@@ -15,11 +20,11 @@ namespace ProcMemory {
 				} while (Process32Next(hSnap, &procEntry));
 			}
 		}
-
 		CloseHandle(hSnap);
 		return procId;
 	}
-	uintptr_t GetModuleBaseAddr(DWORD procId, const wchar_t* modName) {
+
+	DWORD GetModuleBaseAddr(DWORD procId, const wchar_t* modName) {
 		uintptr_t moduleBaseAddr = NULL;
 		HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, procId);
 
@@ -39,11 +44,21 @@ namespace ProcMemory {
 		return moduleBaseAddr;
 	}
 
+	DWORD FindDMAAddy(HANDLE hProcess, DWORD ptr, std::vector<unsigned int> offsets) {
+		DWORD addr = ptr;
+		for (unsigned int i = 0; i < offsets.size(); i++) {
+			ReadProcessMemory(hProcess, (BYTE*)addr, &addr, sizeof(addr), nullptr);
+			addr += offsets[i];
+		}
+		return addr;
+	}
+
 	template<typename T> T RPM(HANDLE hProcess, SIZE_T address) {
 		T buffer;
 		ReadProcessMemory(hProcess, (LPCVOID*)address, &buffer, sizeof(buffer), NULL);
 		return buffer;
 	}
+
 	template<typename T> T WPM(HANDLE hProcess, SIZE_T address, T buffer) {
 		WriteProcessMemory(hProcess, (LPCVOID*)address, &buffer, sizeof(buffer), NULL);
 		return buffer;
